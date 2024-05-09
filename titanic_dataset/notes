@@ -1,0 +1,3 @@
+Titanic dataset
+K-Nearest Neighbors (KNN): KNN can be sensitive to irrelevant features and the curse of dimensionality in high-dimensional datasets.
+Naive Bayes: Naive Bayes assumes independence between features, which may not always hold true in real-world datasets like the Titanic one.
