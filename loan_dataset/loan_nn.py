@@ -1,80 +1,85 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.discriminant_analysis import StandardScaler
 
-# Load Titanic dataset
-df = pd.read_csv('titanic.csv')
+# Load Loan dataset
+df = pd.read_csv('loan.csv')
 
 # Preprocess data
-# Handle missing values
-df['Age'].fillna(df['Age'].median(), inplace=True)
-df['Sex'] = df['Sex'].map({'male': 0, 'female': 1})
-X = df[['Pclass', 'Sex', 'Age', 'Siblings/Spouses Aboard', 'Parents/Children Aboard', 'Fare']].values
-y = df['Survived'].values.reshape(-1, 1)
 
-# Feature normalization
-X = (X - np.mean(X, axis=0)) / np.std(X, axis=0)
+# Handle numerical variables
+numerical_columns = ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History']
+for col in numerical_columns:
+    df[col] = df[col].fillna(df[col].median())  # Fill missing values with median
+    # Scale numerical features
+    scaler = StandardScaler()
+    df[col] = scaler.fit_transform(df[col].values.reshape(-1, 1))
+
+# Encode categorical variables
+categorical_columns = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area', 'Loan_Status']
+for column in categorical_columns:
+    df[column] = pd.Categorical(df[column]).codes
+
+X = df[['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History', 'Property_Area']].values
+y = df['Loan_Status'].values.reshape(-1, 1)
 
 # Initialize network parameters
-layer_sizes = [X.shape[1], 64, 2]  # 2 output classes: survived or not survived
+layer_sizes = [X.shape[1], 64, 2]  # 2 output classes: 'Y' or 'N' for Loan_Status
 reg_lambda = 0.001
- 
-# Function for sigmoid activation
+
+# Define activation functions
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
-# Function for softmax activation
 def softmax(z):
     return np.exp(z) / np.sum(np.exp(z), axis=1, keepdims=True)
 
-# Function for forward propagation
+# Forward propagation
 def forward_propagation(X, Theta):
-    a = [None] * len(layer_sizes)  # activation
-    z = [None] * (len(layer_sizes) - 1)  # layer input
-    a[0] = np.hstack((np.ones((X.shape[0], 1)), X))  # Add bias term to input layer
+    a = [None] * len(layer_sizes)
+    z = [None] * (len(layer_sizes) - 1)
+    a[0] = np.hstack((np.ones((X.shape[0], 1)), X))
 
     for i in range(1, len(layer_sizes)):
         z[i-1] = np.dot(a[i-1], Theta[i-1].T)
         if i == len(layer_sizes) - 1:
-            a[i] = softmax(z[i-1])  # Use softmax for output layer
+            a[i] = softmax(z[i-1])
         else:
-            a[i] = sigmoid(z[i-1])  # Use sigmoid for hidden layers
-            a[i] = np.hstack((np.ones((a[i].shape[0], 1)), a[i]))  # Add bias term to hidden layers
+            a[i] = sigmoid(z[i-1])
+            a[i] = np.hstack((np.ones((a[i].shape[0], 1)), a[i]))
 
-    hypothesis = a[-1]  # Predicted outputs
+    hypothesis = a[-1]
     return hypothesis, a, z
 
-# Function for cost calculation
+# Cost calculation
 def compute_cost(y, hypothesis, Theta):
     m = len(X)
-    y_one_hot = np.eye(layer_sizes[-1])[y.ravel()]  # One-hot encoding of target labels
+    y_one_hot = np.eye(layer_sizes[-1])[y.ravel()]
     cost_per_instance = -np.sum(y_one_hot * np.log(hypothesis), axis=1)
     regularization = sum(np.sum(theta[:, 1:] ** 2) for theta in Theta)
     J = np.sum(cost_per_instance) / m + (reg_lambda / (2 * m)) * regularization
     return J
 
-# Function for backpropagation
+# Backpropagation
 def backpropagation(y, hypothesis, a, z, Theta):
     delta = [None] * (len(layer_sizes) - 1)
-    y_one_hot = np.eye(layer_sizes[-1])[y.ravel()]  # One-hot encoding of target labels
+    y_one_hot = np.eye(layer_sizes[-1])[y.ravel()]
     delta[-1] = hypothesis - y_one_hot
 
     for i in range(len(layer_sizes) - 2, 0, -1):
         delta[i-1] = np.dot(delta[i], Theta[i][:, 1:]) * sigmoid(z[i-1]) * (1 - sigmoid(z[i-1]))
 
-    # Gradients for each training instance
     Delta = [None] * (len(layer_sizes) - 1)
     for i in range(len(layer_sizes) - 1):
         Delta[i] = np.dot(delta[i].T, a[i])
 
-    # Average gradients over the training set
     m = len(X)
     Theta_grad = []
     for i in range(len(layer_sizes) - 1):
         theta_grad = Delta[i] / m
         Theta_grad.append(theta_grad)
 
-    # Regularize gradients (excluding bias terms)
     for i in range(len(layer_sizes) - 1):
         Theta_grad[i][:, 1:] += (reg_lambda / m) * Theta[i][:, 1:]
 
@@ -109,13 +114,11 @@ def stratified_k_fold_cross_validation(X, y, k, epsilon):
     for train_size in range(fold_size, len(X), fold_size):
         avg_accuracy, avg_f1_score, avg_train_cost, avg_test_cost = 0, 0, 0, 0
         for i in range(k):
-            # Split data into train and test sets
             test_indices = indices[i * fold_size: (i + 1) * fold_size]
             train_indices = np.concatenate((indices[:i * fold_size], indices[(i + 1) * fold_size:]))[:train_size]
             X_train, X_test = X[train_indices], X[test_indices]
             y_train, y_test = y[train_indices], y[test_indices]
 
-            # Initialize weights randomly
             Theta = [np.random.uniform(-1, 1, (layer_sizes[i+1], layer_sizes[i] + 1)) for i in range(len(layer_sizes) - 1)]
 
             prev_cost = np.inf
@@ -123,43 +126,35 @@ def stratified_k_fold_cross_validation(X, y, k, epsilon):
             iteration = 0
 
             while improvement > epsilon:
-                # Perform forward propagation
                 hypothesis, a, z = forward_propagation(X_train, Theta)
 
-                # Calculate cost
                 train_cost = compute_cost(y_train, hypothesis, Theta)
                 test_hypothesis, _, _ = forward_propagation(X_test, Theta)
                 test_cost = compute_cost(y_test, test_hypothesis, Theta)
 
-                # Check for improvement
                 improvement = prev_cost - train_cost
                 prev_cost = train_cost
 
                 if improvement <= epsilon:
                     break
 
-                # Perform backpropagation
                 Theta_grad = backpropagation(y_train, hypothesis, a, z, Theta)
 
-                # Update weights
                 for i in range(len(layer_sizes) - 1):
-                    Theta[i] -= 0.01 * Theta_grad[i]  # Update weights using gradient descent
+                    Theta[i] -= 0.01 * Theta_grad[i]
 
                 iteration += 1
 
-            # Accumulate accuracy, F1 score, and costs for averaging
             avg_accuracy += compute_accuracy(y_test, test_hypothesis)
             avg_f1_score += compute_f1_score(y_test, test_hypothesis)
             avg_train_cost += train_cost
             avg_test_cost += test_cost
 
-        # Average accuracy, F1 score, and costs over all folds
         avg_accuracy /= k
         avg_f1_score /= k
         avg_train_cost /= k
         avg_test_cost /= k
 
-        # Append average costs to the lists
         test_costs.append(avg_test_cost)
         train_sizes.append(train_size)
 
@@ -177,5 +172,5 @@ plt.figure(figsize=(10, 6))
 plt.plot(train_sizes, test_costs)
 plt.xlabel('Number of Training Samples')
 plt.ylabel('Cost J')
-plt.title('Learning Curve (Titanic dataset)')
+plt.title('Learning Curve (Loan dataset)')
 plt.show()
