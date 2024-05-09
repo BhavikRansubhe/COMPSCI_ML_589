@@ -2,5 +2,5 @@
 UMass COMPSCI 589 submission
 
 Team members:
-Bhavik Ransubhe
-Apoorva Gerasa Shankarappa Gowda
+* Bhavik Ransubhe
+* Apoorva Gerasa Shankarappa Gowda
