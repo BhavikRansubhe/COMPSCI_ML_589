@@ -1,39 +1,28 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.discriminant_analysis import StandardScaler
+from sklearn.datasets import load_digits
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
-# Load Loan dataset
-df = pd.read_csv('loan.csv')
+# Load sklearn digits dataset
+digits = load_digits()
+X, y = digits.data, digits.target
 
 # Preprocess data
 
-# Handle numerical variables
-numerical_columns = ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History']
-for col in numerical_columns:
-    df[col] = df[col].fillna(df[col].median())  # Fill missing values with median
-    # Scale numerical features
-    scaler = StandardScaler()
-    df[col] = scaler.fit_transform(df[col].values.reshape(-1, 1))
+# Scale numerical features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
 
-# Encode categorical variables
-categorical_columns = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area', 'Loan_Status']
-for column in categorical_columns:
-    df[column] = pd.Categorical(df[column]).codes
-
-X = df[['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History', 'Property_Area']].values
-y = df['Loan_Status'].values.reshape(-1, 1)
+# Split data into train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
 # Initialize network parameters
-layer_sizes = [X.shape[1], 64, 64, 2]  # 2 output classes: 'Y' or 'N' for Loan_Status
-reg_lambda = 0.001
-
+layer_sizes = [X_train.shape[1], 16, 10]  # 10 output classes: digits 0-9
+reg_lambda = 0
 # Define activation functions
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
-
-def softmax(z):
-    return np.exp(z) / np.sum(np.exp(z), axis=1, keepdims=True)
 
 # Forward propagation
 def forward_propagation(X, Theta):
@@ -52,9 +41,13 @@ def forward_propagation(X, Theta):
     hypothesis = a[-1]
     return hypothesis, a, z
 
+# Define softmax activation function
+def softmax(z):
+    return np.exp(z) / np.sum(np.exp(z), axis=1, keepdims=True)
+
 # Cost calculation
 def compute_cost(y, hypothesis, Theta):
-    m = len(X)
+    m = len(X_train)
     y_one_hot = np.eye(layer_sizes[-1])[y.ravel()]
     cost_per_instance = -np.sum(y_one_hot * np.log(hypothesis), axis=1)
     regularization = sum(np.sum(theta[:, 1:] ** 2) for theta in Theta)
@@ -74,7 +67,7 @@ def backpropagation(y, hypothesis, a, z, Theta):
     for i in range(len(layer_sizes) - 1):
         Delta[i] = np.dot(delta[i].T, a[i])
 
-    m = len(X)
+    m = len(X_train)
     Theta_grad = []
     for i in range(len(layer_sizes) - 1):
         theta_grad = Delta[i] / m
@@ -103,6 +96,7 @@ def compute_f1_score(y, hypothesis):
         f1_scores.append(f1_score)
     avg_f1_score = np.mean(f1_scores)
     return avg_f1_score
+
 
 def stratified_k_fold_cross_validation(X, y, k, epsilon):
     fold_size = len(X) // k
@@ -163,7 +157,7 @@ def stratified_k_fold_cross_validation(X, y, k, epsilon):
 # Perform stratified k-fold cross-validation with k=10
 k = 10
 epsilon = 0.0001
-avg_accuracy, avg_f1_score, test_costs, train_sizes = stratified_k_fold_cross_validation(X, y, k, epsilon)
+avg_accuracy, avg_f1_score, test_costs, train_sizes = stratified_k_fold_cross_validation(X_train, y_train, k, epsilon)
 
 print(f"Average Accuracy: {avg_accuracy}")
 print(f"Average F1 Score: {avg_f1_score}")
@@ -172,5 +166,5 @@ plt.figure(figsize=(10, 6))
 plt.plot(train_sizes, test_costs)
 plt.xlabel('Number of Training Samples')
 plt.ylabel('Cost J')
-plt.title('Learning Curve (Loan dataset)')
+plt.title('Learning Curve (Digits dataset)')
 plt.show()

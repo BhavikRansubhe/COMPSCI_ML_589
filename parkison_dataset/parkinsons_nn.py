@@ -3,13 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.discriminant_analysis import StandardScaler
 
-# Load Loan dataset
-df = pd.read_csv('loan.csv')
+# Load Parkinson's dataset
+df = pd.read_csv('parkinsons.csv')
 
 # Preprocess data
 
 # Handle numerical variables
-numerical_columns = ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History']
+numerical_columns = ['MDVP:Fo(Hz)', 'MDVP:Fhi(Hz)', 'MDVP:Flo(Hz)', 'MDVP:Jitter(%)', 'MDVP:Jitter(Abs)', 'MDVP:RAP', 'MDVP:PPQ', 'Jitter:DDP', 'MDVP:Shimmer', 'MDVP:Shimmer(dB)', 'Shimmer:APQ3', 'Shimmer:APQ5', 'MDVP:APQ', 'Shimmer:DDA', 'NHR', 'HNR', 'RPDE', 'DFA', 'spread1', 'spread2', 'D2', 'PPE']
 for col in numerical_columns:
     df[col] = df[col].fillna(df[col].median())  # Fill missing values with median
     # Scale numerical features
@@ -17,16 +17,14 @@ for col in numerical_columns:
     df[col] = scaler.fit_transform(df[col].values.reshape(-1, 1))
 
 # Encode categorical variables
-categorical_columns = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area', 'Loan_Status']
-for column in categorical_columns:
-    df[column] = pd.Categorical(df[column]).codes
+df['Diagnosis'] = pd.Categorical(df['Diagnosis']).codes
 
-X = df[['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History', 'Property_Area']].values
-y = df['Loan_Status'].values.reshape(-1, 1)
+X = df.drop('Diagnosis', axis=1).values
+y = df['Diagnosis'].values.reshape(-1, 1)
 
 # Initialize network parameters
-layer_sizes = [X.shape[1], 64, 64, 2]  # 2 output classes: 'Y' or 'N' for Loan_Status
-reg_lambda = 0.001
+layer_sizes = [X.shape[1], 128, 128, 2]  # 2 output classes
+reg_lambda = 0
 
 # Define activation functions
 def sigmoid(z):
@@ -172,5 +170,5 @@ plt.figure(figsize=(10, 6))
 plt.plot(train_sizes, test_costs)
 plt.xlabel('Number of Training Samples')
 plt.ylabel('Cost J')
-plt.title('Learning Curve (Loan dataset)')
+plt.title('Learning Curve (Parkinson\'s dataset)')
 plt.show()

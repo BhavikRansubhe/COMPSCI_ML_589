@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 from sklearn.discriminant_analysis import StandardScaler
 
 # Load Loan dataset
-df = pd.read_csv('loan.csv')
+df = pd.read_csv("oasis.csv")
 
 # Preprocess data
 
 # Handle numerical variables
-numerical_columns = ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History']
+numerical_columns = ['MR Delay', 'Age', 'EDUC', 'MMSE', 'CDR', 'eTIV', 'nWBV', 'ASF', 'Visit', 'SES']
 for col in numerical_columns:
     df[col] = df[col].fillna(df[col].median())  # Fill missing values with median
     # Scale numerical features
@@ -17,16 +17,22 @@ for col in numerical_columns:
     df[col] = scaler.fit_transform(df[col].values.reshape(-1, 1))
 
 # Encode categorical variables
-categorical_columns = ['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'Property_Area', 'Loan_Status']
+categorical_columns = ['M/F']
+df['SES'].fillna(df['SES'].median(), inplace=True)
 for column in categorical_columns:
-    df[column] = pd.Categorical(df[column]).codes
+    if column == 'M/F':
+        df[column] = df[column].map({'M': 0, 'F': 1})
+    else:
+        df[column] = pd.Categorical(df[column]).codes
 
-X = df[['Gender', 'Married', 'Dependents', 'Education', 'Self_Employed', 'ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'Credit_History', 'Property_Area']].values
-y = df['Loan_Status'].values.reshape(-1, 1)
+target_mapping = {'Nondemented': 0, 'Demented': 1, 'Converted': 2}
+df['Group'] = df['Group'].map(target_mapping)
+X = df[['MR Delay', 'Age', 'EDUC', 'MMSE', 'CDR', 'eTIV', 'nWBV', 'ASF','Visit', 'M/F', 'SES']].values
+y = df['Group'].values.reshape(-1, 1)
 
 # Initialize network parameters
-layer_sizes = [X.shape[1], 64, 64, 2]  # 2 output classes: 'Y' or 'N' for Loan_Status
-reg_lambda = 0.001
+layer_sizes = [X.shape[1], 64, 64, 3]  # 3 output classes
+reg_lambda = 0
 
 # Define activation functions
 def sigmoid(z):
@@ -162,7 +168,7 @@ def stratified_k_fold_cross_validation(X, y, k, epsilon):
 
 # Perform stratified k-fold cross-validation with k=10
 k = 10
-epsilon = 0.0001
+epsilon = 0.00001
 avg_accuracy, avg_f1_score, test_costs, train_sizes = stratified_k_fold_cross_validation(X, y, k, epsilon)
 
 print(f"Average Accuracy: {avg_accuracy}")
